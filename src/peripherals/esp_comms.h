@@ -2,7 +2,7 @@
 #ifndef ESP_COMMS_H
 #define ESP_COMMS_H
 
-#include "mcu_comms.h"
+#include "profiling_phases.h"
 
 void espCommsInit();
 

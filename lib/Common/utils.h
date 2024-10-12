@@ -2,7 +2,7 @@
 #ifndef GAGGIA_UTILS_H
 #define GAGGIA_UTILS_H
 
-#include "Arduino.h"
+#include <Arduino.h>
 
 enum class TransitionCurve {
   EASE_IN_OUT,

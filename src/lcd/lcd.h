@@ -2,12 +2,11 @@
 #ifndef LCD_H
 #define LCD_H
 
-#include <EasyNextionLibrary.h>
-#include "eeprom_data/eeprom_data.h"
 #include "../../lib/Common/system_state.h"
+#include "eeprom_data/eeprom_data.h"
+#include <EasyNextionLibrary.h>
 
-
-enum class NextionPage: byte {
+enum class NextionPage : byte {
   /* 00 */ Home,
   /* 01 */ BrewPreinfusion,
   /* 02 */ BrewSoak,
@@ -30,16 +29,17 @@ extern volatile NextionPage lcdCurrentPageId;
 extern volatile NextionPage lcdLastCurrentPageId;
 
 void lcdInit(void);
-bool lcdCheckSerialInit(const char* expectedOutput, size_t expectedLen);
+bool lcdCheckSerialInit(const char *expectedOutput, size_t expectedLen);
 void lcdUploadProfile(eepromValues_t &eepromCurrentValues);
 void lcdUploadCfg(eepromValues_t &eepromCurrentValues);
 void uploadPageCfg(eepromValues_t &eepromCurrentValues, SystemState &sys);
 void lcdListen(void);
 void lcdWakeUp(void);
 
-void lcdFetchCurrentProfile(eepromValues_t & settings);
-void lcdFetchLed(eepromValues_t & settings);
-void lcdFetchPage(eepromValues_t &settings, NextionPage page, int targetProfile);
+void lcdFetchCurrentProfile(eepromValues_t &settings);
+void lcdFetchLed(eepromValues_t &settings);
+void lcdFetchPage(eepromValues_t &settings, NextionPage page,
+                  int targetProfile);
 uint8_t lcdGetSelectedProfile(void);
 bool lcdGetPreinfusionFlowState(void);
 bool lcdGetProfileFlowState(void);

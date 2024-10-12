@@ -1,7 +1,7 @@
 #ifndef MEASUREMENTS_UTIL_H
 #define MEASUREMENTS_UTIL_H
 
-#include "Arduino.h"
+#include <Arduino.h>
 #include <deque>
 
 /** Holds a measurement value and the time it was taken */

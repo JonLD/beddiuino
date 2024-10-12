@@ -5,30 +5,15 @@
 #include <Arduino.h>
 #include <SimpleKalmanFilter.h>
 
-#include "log.h"
-#include "eeprom_data/eeprom_data.h"
-#include "lcd/lcd.h"
-#include "peripherals/internal_watchdog.h"
-#include "peripherals/pump.h"
-#include "peripherals/pressure_sensor.h"
-#include "peripherals/scales.h"
-#include "peripherals/peripherals.h"
-#include "peripherals/thermocouple.h"
-#include "sensors_state.h"
-#include "system_state.h"
-#include "functional/descale.h"
-#include "functional/just_do_coffee.h"
 #include "functional/predictive_weight.h"
-#include "profiling_phases.h"
-#include "peripherals/esp_comms.h"
-#include "peripherals/led.h"
-#include "peripherals/tof.h"
 
 // Define some const values
 #if defined SINGLE_BOARD
-    #define GET_KTYPE_READ_EVERY    70 // max31855 amp module data read interval not recommended to be changed to lower than 70 (ms)
+    // max31855 amp module data read interval not recommended to be changed to lower than 70 (ms)
+    #define GET_KTYPE_READ_EVERY    70
 #else
-    #define GET_KTYPE_READ_EVERY    250 // max6675 amp module data read interval not recommended to be changed to lower than 250 (ms)
+    // max6675 amp module data read interval not recommended to be changed to lower than 250 (ms)
+    #define GET_KTYPE_READ_EVERY    250
 #endif
 #define GET_PRESSURE_READ_EVERY 10 // Pressure refresh interval (ms)
 #define GET_SCALES_READ_EVERY   100 // Scales refresh interval (ms)
@@ -74,9 +59,6 @@ unsigned long scalesTimer;
 unsigned long flowTimer;
 unsigned long steamTime;
 
-//scales vars
-Measurements weightMeasurements(4);
-
 // brew detection vars
 bool brewActive = false;
 bool nonBrewModeActive = false;
@@ -89,6 +71,9 @@ bool homeScreenScalesEnabled = false;
 float previousSmoothedPressure;
 float previousSmoothedPumpFlow;
 
-static void sysHealthCheck(float pressureThreshold);
+// Public function declarations
 
-#endif
+void lcdSaveSettingsTrigger(void);
+
+
+#endif // GAGGIUINO_H

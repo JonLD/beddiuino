@@ -2,6 +2,7 @@
 #ifndef PROFILING_PHASES_H
 #define PROFILING_PHASES_H
 
+#include <Arduino.h>
 #include "utils.h"
 #include "sensors_state.h"
 #include "../../src/eeprom_data/eeprom_data.h"
