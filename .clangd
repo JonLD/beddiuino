@@ -1,0 +1,4 @@
+
+CompileFlags:
+  Add:
+  "-Isrc" # Add src as extra include directory

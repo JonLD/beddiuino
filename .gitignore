@@ -1,5 +1,4 @@
 .cache/
-.clangd
 .clang-tidy
 compile_commands.json
 .idea/
