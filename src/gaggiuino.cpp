@@ -11,6 +11,7 @@
 #include "functional/just_do_coffee.h"
 #include "lcd/lcd.h"
 #include "log.h"
+#include "measurements.h"
 #include "peripherals/esp_comms.h"
 #include "peripherals/internal_watchdog.h"
 #include "peripherals/led.h"
@@ -19,22 +20,17 @@
 #include "peripherals/pump.h"
 #include "peripherals/scales.h"
 #include "peripherals/thermocouple.h"
-#include "peripherals/tof.h"
 #include "profiling_phases.h"
+#include "sensor_reader.h"
 #include "sensors_state.h"
 #include "system_state.h"
 #include <Arduino.h>
+#include <SimpleKalmanFilter.h>
 
 /* Private function declarations */
 
 static void sensorsRead(void);
-static void sensorReadSwitches(void);
-static void sensorsReadTemperature(void);
-static void sensorsReadWeight(void);
-static void sensorsReadPressure(void);
-static long sensorsReadFlow(float elapsedTimeSec);
 static void calculateWeightAndFlow(void);
-static void readTankWaterLevel(void);
 static void pageValuesRefresh();
 static void modeSelect(void);
 static void lcdRefresh(void);
@@ -74,20 +70,20 @@ static unsigned long getTimeSinceInit(void);
 /* Private variables */
 namespace
 {
-SimpleKalmanFilter smoothPressure(0.6f, 0.6f, 0.1f);
-SimpleKalmanFilter smoothPumpFlow(0.1f, 0.1f, 0.01f);
-SimpleKalmanFilter smoothScalesFlow(0.5f, 0.5f, 0.01f);
 SimpleKalmanFilter smoothConsideredFlow(0.1f, 0.1f, 0.1f);
-
 // default phases. Updated in updateProfilerPhases.
 Profile profile;
 PhaseProfiler phaseProfiler{profile};
+
+unsigned long brewingTimer;
+unsigned long flowTimer;
 
 // scales vars
 Measurements weightMeasurements(4);
 
 PredictiveWeight predictiveWeight;
 
+SensorReader sensorReader;
 SensorState currentState;
 
 OPERATION_MODES selectedOperationalMode;
@@ -97,7 +93,6 @@ eepromValues_t runningCfg;
 SystemState systemState;
 
 LED led;
-TOF tof;
 } // namespace
 
 void setup(void)
@@ -138,7 +133,7 @@ void setup(void)
     led.begin();
     led.setColor(9u, 0u, 9u); // WHITE
     // Init the tof sensor
-    tof.init(currentState);
+    sensorReader.initWaterLevelSensor(currentState);
 
     // Initialising the saved values or writing defaults if first start
     eepromInit();
@@ -199,100 +194,11 @@ void loop(void)
 
 static void sensorsRead(void)
 {
-    sensorReadSwitches();
-    espCommsReadData();
-    sensorsReadTemperature();
-    sensorsReadWeight();
-    sensorsReadPressure();
-    calculateWeightAndFlow();
+    sensorReader.sensorReadStep(currentState, runningCfg, brewActive, lcdCurrentPageId);
     updateStartupTimer();
-    readTankWaterLevel();
+    calculateWeightAndFlow();
+    espCommsReadData();
     doLed();
-}
-
-static void sensorReadSwitches(void)
-{
-    currentState.brewSwitchState = gpio::brewState();
-    currentState.steamSwitchState = gpio::steamState();
-    currentState.hotWaterSwitchState =
-        gpio::waterPinState() || (currentState.brewSwitchState &&
-                                  currentState.steamSwitchState); // use either an actual switch, or
-                                                                  // the GC/GCP switch combo
-}
-
-static void sensorsReadTemperature(void)
-{
-    if (millis() > thermoTimer)
-    {
-        currentState.temperature = thermocoupleRead() - runningCfg.offsetTemp;
-        thermoTimer = millis() + GET_KTYPE_READ_EVERY;
-    }
-}
-
-static void sensorsReadWeight(void)
-{
-    uint32_t elapsedTime = millis() - scalesTimer;
-
-    if (elapsedTime > GET_SCALES_READ_EVERY)
-    {
-        currentState.scalesPresent = scalesIsPresent();
-        if (currentState.scalesPresent)
-        {
-            if (currentState.tarePending)
-            {
-                scalesTare();
-                weightMeasurements.clear();
-                weightMeasurements.add(scalesGetWeight());
-                currentState.tarePending = false;
-            }
-            else
-            {
-                weightMeasurements.add(scalesGetWeight());
-            }
-            currentState.weight = weightMeasurements.latest().value;
-
-            if (brewActive)
-            {
-                currentState.shotWeight = currentState.tarePending ? 0.f : currentState.weight;
-                currentState.weightFlow =
-                    fmax(0.f, weightMeasurements.measurementChange().changeSpeed());
-                currentState.smoothedWeightFlow =
-                    smoothScalesFlow.updateEstimate(currentState.weightFlow);
-            }
-        }
-        scalesTimer = millis();
-    }
-}
-
-static void sensorsReadPressure(void)
-{
-    uint32_t elapsedTime = millis() - pressureTimer;
-
-    if (elapsedTime > GET_PRESSURE_READ_EVERY)
-    {
-        float elapsedTimeSec = elapsedTime / 1000.f;
-        currentState.pressure = getPressure();
-        previousSmoothedPressure = currentState.smoothedPressure;
-        currentState.smoothedPressure = smoothPressure.updateEstimate(currentState.pressure);
-        currentState.pressureChangeSpeed =
-            (currentState.smoothedPressure - previousSmoothedPressure) / elapsedTimeSec;
-        pressureTimer = millis();
-    }
-}
-
-static long sensorsReadFlow(float elapsedTimeSec)
-{
-    long pumpClicks = getAndResetClickCounter();
-    currentState.pumpClicks = (float)pumpClicks / elapsedTimeSec;
-
-    currentState.pumpFlow = getPumpFlow(currentState.pumpClicks, currentState.smoothedPressure);
-
-    previousSmoothedPumpFlow = currentState.smoothedPumpFlow;
-    // Some flow smoothing
-    currentState.smoothedPumpFlow = smoothPumpFlow.updateEstimate(currentState.pumpFlow);
-    currentState.pumpFlowChangeSpeed =
-        (currentState.smoothedPumpFlow - previousSmoothedPumpFlow) / elapsedTimeSec;
-    return pumpClicks;
 }
 
 static void calculateWeightAndFlow(void)
@@ -310,7 +216,7 @@ static void calculateWeightAndFlow(void)
         {
             flowTimer = millis();
             float elapsedTimeSec = elapsedTime / 1000.f;
-            long pumpClicks = sensorsReadFlow(elapsedTimeSec);
+            long pumpClicks = sensorReader.readFlow(currentState, elapsedTimeSec);
             float consideredFlow = currentState.smoothedPumpFlow * elapsedTimeSec;
             // Update predictive class with our current phase
             CurrentPhase &phase = phaseProfiler.getCurrentPhase();
@@ -351,19 +257,6 @@ static void calculateWeightAndFlow(void)
         currentState.consideredFlow = 0.f;
         currentState.pumpClicks = getAndResetClickCounter();
         flowTimer = millis();
-    }
-}
-
-// return the reading in mm of the tank water level.
-static void readTankWaterLevel(void)
-{
-    if (lcdCurrentPageId == NextionPage::Home)
-    {
-        // static uint32_t tof_timeout = millis();
-        // if (millis() >= tof_timeout) {
-        currentState.waterLvl = tof.readLvl();
-        // tof_timeout = millis() + 500;
-        // }
     }
 }
 
@@ -1097,17 +990,7 @@ static inline void sysHealthCheck(float pressureThreshold)
         setPumpOff();
         gpio::setBoilerOff();
         gpio::setSteamBoilerRelayOff();
-        if (millis() > thermoTimer)
-        {
-            LOG_ERROR("Cannot read temp from thermocouple (last read: %.1lf)!",
-                      static_cast<double>(currentState.temperature));
-            currentState.steamSwitchState
-                ? lcdShowPopup("COOLDOWN")
-                : lcdShowPopup("TEMP READ ERROR"); // writing a LCD message
-            currentState.temperature =
-                thermocoupleRead() - runningCfg.offsetTemp; // Making sure we're getting a value
-            thermoTimer = millis() + GET_KTYPE_READ_EVERY;
-        }
+        sensorReader.themocoupleHealthCheck(currentState, runningCfg);
     }
 
     /*Shut down heaters if steam has been ON and unused fpr more than 10
@@ -1235,8 +1118,8 @@ static bool isBoilerFull(unsigned long elapsedTime)
     bool boilerFull = false;
     if (elapsedTime > BOILER_FILL_START_TIME + 1000UL)
     {
-        boilerFull = (previousSmoothedPressure - currentState.smoothedPressure > -0.02f) &&
-                     (previousSmoothedPressure - currentState.smoothedPressure < 0.001f);
+        const float changInSmoothedPressure = sensorReader.getChangeInPressure(currentState);
+        boilerFull = (changInSmoothedPressure > -0.02f) && (changInSmoothedPressure < 0.001f);
     }
 
     return elapsedTime >= BOILER_FILL_TIMEOUT || boilerFull;
