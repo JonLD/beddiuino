@@ -58,11 +58,11 @@ namespace {
     uint16_t mfProfileSlopeShape;
     float    mfProfilingPressureRestriction;
     /*-----------OTHER---------------------*/
-    uint16_t setpoint;
-    bool     stopOnWeightState;
-    float    shotDose;
-    float    shotStopOnCustomWeight;
-    uint16_t shotPreset;
+    uint16_t setpoint;               // Temperature setpoint for shot
+    bool     stopOnWeightState;      // If true, stop the shot on the target weight
+    float    shotDose;               // Dose of a single shot
+    float    shotStopOnCustomWeight; // Is this for custom weight ignoring shots?
+    uint16_t shotPreset;             // Number of espresso shots
   } profileDefaults_t;
 
   // DONE:: Fully customised default profiles in line wiuth the names
