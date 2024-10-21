@@ -2,27 +2,27 @@
 #ifndef LCD_H
 #define LCD_H
 
-#include "../../lib/Common/system_state.h"
 #include "eeprom_data/eeprom_data.h"
 #include <EasyNextionLibrary.h>
 
-enum class NextionPage : byte {
-  /* 00 */ Home,
-  /* 01 */ BrewPreinfusion,
-  /* 02 */ BrewSoak,
-  /* 03 */ BrewProfiling,
-  /* 04 */ BrewManual,
-  /* 05 */ Flush,
-  /* 06 */ Descale,
-  /* 07 */ SettingsBoiler,
-  /* 08 */ SettingsSystem,
-  /* 09 */ BrewGraph,
-  /* 0A */ BrewMore,
-  /* 0B */ ShotSettings,
-  /* 0C */ BrewTransitionProfile,
-  /* 0D */ GraphPreview,
-  /* 0E */ KeyboardNumeric,
-  /* 0F */ Led
+enum class NextionPage : byte
+{
+    /* 00 */ Home,
+    /* 01 */ BrewPreinfusion,
+    /* 02 */ BrewSoak,
+    /* 03 */ BrewProfiling,
+    /* 04 */ BrewManual,
+    /* 05 */ Flush,
+    /* 06 */ Descale,
+    /* 07 */ SettingsBoiler,
+    /* 08 */ SettingsSystem,
+    /* 09 */ BrewGraph,
+    /* 0A */ BrewMore,
+    /* 0B */ ShotSettings,
+    /* 0C */ BrewTransitionProfile,
+    /* 0D */ GraphPreview,
+    /* 0E */ KeyboardNumeric,
+    /* 0F */ Led
 };
 
 extern volatile NextionPage lcdCurrentPageId;
@@ -32,14 +32,13 @@ void lcdInit(void);
 bool lcdCheckSerialInit(const char *expectedOutput, size_t expectedLen);
 void lcdUploadProfile(eepromValues_t &eepromCurrentValues);
 void lcdUploadCfg(eepromValues_t &eepromCurrentValues);
-void uploadPageCfg(eepromValues_t &eepromCurrentValues, SystemState &sys);
+void uploadPageCfg(eepromValues_t &eepromCurrentValues);
 void lcdListen(void);
 void lcdWakeUp(void);
 
 void lcdFetchCurrentProfile(eepromValues_t &settings);
 void lcdFetchLed(eepromValues_t &settings);
-void lcdFetchPage(eepromValues_t &settings, NextionPage page,
-                  int targetProfile);
+void lcdFetchPage(eepromValues_t &settings, NextionPage page, int targetProfile);
 uint8_t lcdGetSelectedProfile(void);
 bool lcdGetPreinfusionFlowState(void);
 bool lcdGetProfileFlowState(void);

@@ -23,7 +23,6 @@
 #include "profiling_phases.h"
 #include "sensor_reader.h"
 #include "sensors_state.h"
-#include "system_state.h"
 #include <Arduino.h>
 #include <SimpleKalmanFilter.h>
 
@@ -90,7 +89,7 @@ OPERATION_MODES selectedOperationalMode;
 
 eepromValues_t runningCfg;
 
-SystemState systemState;
+bool startupInitFinished;
 
 LED led;
 } // namespace
@@ -291,7 +290,7 @@ static void pageValuesRefresh()
 // #############################################################################################
 static void modeSelect(void)
 {
-    if (!systemState.startupInitFinished)
+    if (!startupInitFinished)
         return;
 
     switch (selectedOperationalMode)
@@ -536,7 +535,7 @@ void lcdRefreshElementsTrigger(void)
     }
 
     // Make the necessary changes
-    uploadPageCfg(eepromCurrentValues, systemState);
+    uploadPageCfg(eepromCurrentValues);
     // refresh the screen elements
     pageValuesRefresh();
 }
@@ -947,7 +946,7 @@ static void brewParamsReset(void)
 static bool sysReadinessCheck(void)
 {
     // Startup procedures not finished
-    if (!systemState.startupInitFinished)
+    if (!startupInitFinished)
     {
         return false;
     }
@@ -1078,14 +1077,14 @@ static void fillBoiler(void)
 {
 #if defined LEGO_VALVE_RELAY || defined SINGLE_BOARD
 
-    if (systemState.startupInitFinished)
+    if (startupInitFinished)
     {
         return;
     }
 
     if (currentState.temperature > BOILER_FILL_SKIP_TEMP)
     {
-        systemState.startupInitFinished = true;
+        startupInitFinished = true;
         return;
     }
 
@@ -1098,7 +1097,7 @@ static void fillBoiler(void)
         lcdShowPopup("Brew Switch ON!");
     }
 #else
-    systemState.startupInitFinished = true;
+    startupInitFinished = true;
 #endif
 }
 
@@ -1129,7 +1128,7 @@ static void fillBoilerUntilThreshod(unsigned long elapsedTime)
 {
     if (elapsedTime >= BOILER_FILL_TIMEOUT)
     {
-        systemState.startupInitFinished = true;
+        startupInitFinished = true;
         return;
     }
 
@@ -1137,7 +1136,7 @@ static void fillBoilerUntilThreshod(unsigned long elapsedTime)
     {
         gpio::closeValve();
         setPumpOff();
-        systemState.startupInitFinished = true;
+        startupInitFinished = true;
         return;
     }
 

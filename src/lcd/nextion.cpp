@@ -194,7 +194,7 @@ void lcdUploadCfg(eepromValues_t &eepromCurrentValues) {
   lcdUploadProfile(eepromCurrentValues);
 }
 
-void uploadPageCfg(eepromValues_t &eepromCurrentValues, SystemState &sys) {
+void uploadPageCfg(eepromValues_t &eepromCurrentValues) {
   // Updating only page specific elements as necessary to speed up things and avoid needless writes.
   switch (lcdCurrentPageId) {
     case NextionPage::BrewPreinfusion:
