@@ -15,7 +15,7 @@
 #include "peripherals/esp_comms.h"
 #include "peripherals/internal_watchdog.h"
 #include "peripherals/led.h"
-#include "peripherals/peripherals.h"
+#include "peripherals/gpio.h"
 #include "peripherals/pressure_sensor.h"
 #include "peripherals/pump.h"
 #include "peripherals/scales.h"

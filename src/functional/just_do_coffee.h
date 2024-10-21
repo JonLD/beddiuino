@@ -3,7 +3,7 @@
 #define JUST_DO_COFFEE_H
 
 #include "utils.h"
-#include "../peripherals/peripherals.h"
+#include "../peripherals/gpio.h"
 #include "../peripherals/pump.h"
 #include "../eeprom_data/eeprom_data.h"
 #include "sensors_state.h"
