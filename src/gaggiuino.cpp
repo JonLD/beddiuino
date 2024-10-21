@@ -364,13 +364,7 @@ static void lcdRefresh(void)
 
     if (millis() > pageRefreshTimer)
     {
-/*LCD pressure output, as a measure to beautify the graphs locking the live
- * pressure read for the LCD alone*/
-#ifdef BEAUTIFY_GRAPH
         lcdSetPressure(currentState.smoothedPressure * 10.f);
-#else
-        lcdSetPressure(currentState.pressure > 0.f ? currentState.pressure * 10.f : 0.f);
-#endif
 
         /*LCD temp output*/
         float brewTempSetPoint = ACTIVE_PROFILE(runningCfg).setpoint + runningCfg.offsetTemp;
