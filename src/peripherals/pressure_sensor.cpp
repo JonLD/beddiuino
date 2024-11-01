@@ -7,9 +7,9 @@
 #include "i2c_bus_reset.h"
 
 #if defined SINGLE_BOARD
-ADS1015 ADS(0x48);
+static ADS1015 ADS(0x48);
 #else
-ADS1115 ADS(0x48);
+static ADS1115 ADS(0x48);
 #endif
 
 float previousPressure;

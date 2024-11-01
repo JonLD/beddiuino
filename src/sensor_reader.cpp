@@ -1,4 +1,8 @@
 #include "sensor_reader.h"
+
+#include <Arduino.h>
+#include <SimpleKalmanFilter.h>
+
 #include "../lib/Common/measurements.h"
 #include "../lib/Common/sensors_state.h"
 #include "eeprom_data/eeprom_data.h"
@@ -9,11 +13,8 @@
 #include "peripherals/pump.h"
 #include "peripherals/scales.h"
 #include "peripherals/thermocouple.h"
-#include "peripherals/tof.h"
-#include <Arduino.h>
-#include <SimpleKalmanFilter.h>
 
-// Define some const values
+/* Private defines */
 #if defined SINGLE_BOARD
 // max31855 amp module data read interval not recommended to be changed to lower than 70 (ms)
 #define GET_KTYPE_READ_EVERY 70
@@ -24,24 +25,15 @@
 #define GET_PRESSURE_READ_EVERY 10 // Pressure refresh interval (ms)
 #define GET_SCALES_READ_EVERY 100  // Scales refresh interval (ms)
 
-TOF tof;
-
-namespace
-{
-SimpleKalmanFilter smoothPressure(0.6f, 0.6f, 0.1f);
-SimpleKalmanFilter smoothPumpFlow(0.1f, 0.1f, 0.01f);
-SimpleKalmanFilter smoothScalesFlow(0.5f, 0.5f, 0.01f);
-Measurements weightMeasurements(4);
-} // namespace
-
 /* Public method definitions */
 
 void SensorReader::sensorReadStep(SensorState &currentState, const eepromValues_t &runningCfg,
-                                  const bool brewActive, const NextionPage lcdCurrentPageId)
+                                  const bool brewActive, const NextionPage lcdCurrentPageId,
+                                  Measurements &weightMeasurements)
 {
     readSwitches(currentState);
     readTemperature(currentState, runningCfg);
-    readWeight(currentState, brewActive);
+    readWeight(currentState, brewActive, weightMeasurements);
     readPressure(currentState);
     readTankWaterLevel(currentState, lcdCurrentPageId);
 }
@@ -52,7 +44,7 @@ float SensorReader::getChangeInPressure(const SensorState &currentState)
 }
 
 void SensorReader::themocoupleHealthCheck(SensorState &currentState,
-                                          const eepromValues_t runningCfg)
+                                          const eepromValues_t &runningCfg)
 {
     if (millis() > thermoTimer)
     {
@@ -64,6 +56,28 @@ void SensorReader::themocoupleHealthCheck(SensorState &currentState,
             thermocoupleRead() - runningCfg.offsetTemp; // Making sure we're getting a value
         thermoTimer = millis() + GET_KTYPE_READ_EVERY;
     }
+}
+
+long SensorReader::readFlow(SensorState &currentState, const float elapsedTimeSec)
+{
+    static SimpleKalmanFilter smoothPumpFlow(0.1f, 0.1f, 0.01f);
+    static float previousSmoothedPumpFlow;
+    long pumpClicks = getAndResetClickCounter();
+    currentState.pumpClicks = (float)pumpClicks / elapsedTimeSec;
+
+    currentState.pumpFlow = getPumpFlow(currentState.pumpClicks, currentState.smoothedPressure);
+
+    previousSmoothedPumpFlow = currentState.smoothedPumpFlow;
+    // Some flow smoothing
+    currentState.smoothedPumpFlow = smoothPumpFlow.updateEstimate(currentState.pumpFlow);
+    currentState.pumpFlowChangeSpeed =
+        (currentState.smoothedPumpFlow - previousSmoothedPumpFlow) / elapsedTimeSec;
+    return pumpClicks;
+}
+
+void SensorReader::initWaterLevelSensor(SensorState &currentState)
+{
+    tofSensor.init(currentState);
 }
 
 /* Private method definitions */
@@ -86,8 +100,11 @@ void SensorReader::readTemperature(SensorState &currentState, const eepromValues
     }
 }
 
-void SensorReader::readWeight(SensorState &currentState, const bool brewActive)
+void SensorReader::readWeight(SensorState &currentState, const bool brewActive,
+                              Measurements &weightMeasurements)
 {
+    static SimpleKalmanFilter smoothScalesFlow(0.5f, 0.5f, 0.01f);
+
     static unsigned long scalesTimer;
     uint32_t elapsedTime = millis() - scalesTimer;
 
@@ -124,35 +141,21 @@ void SensorReader::readWeight(SensorState &currentState, const bool brewActive)
 
 void SensorReader::readPressure(SensorState &currentState)
 {
+    static SimpleKalmanFilter smoothPressure(0.6f, 0.6f, 0.1f);
     static unsigned long pressureTimer;
+
     uint32_t elapsedTime = millis() - pressureTimer;
 
     if (elapsedTime > GET_PRESSURE_READ_EVERY)
     {
         float elapsedTimeSec = elapsedTime / 1000.f;
-        currentState.pressure = getPressure();
         previousSmoothedPressure = currentState.smoothedPressure;
-        currentState.smoothedPressure = smoothPressure.updateEstimate(currentState.pressure);
+        const float pressure_bar = getPressure();
+        currentState.smoothedPressure = smoothPressure.updateEstimate(pressure_bar);
         currentState.pressureChangeSpeed =
             (currentState.smoothedPressure - previousSmoothedPressure) / elapsedTimeSec;
         pressureTimer = millis();
     }
-}
-
-long SensorReader::readFlow(SensorState &currentState, const float elapsedTimeSec)
-{
-    static float previousSmoothedPumpFlow;
-    long pumpClicks = getAndResetClickCounter();
-    currentState.pumpClicks = (float)pumpClicks / elapsedTimeSec;
-
-    currentState.pumpFlow = getPumpFlow(currentState.pumpClicks, currentState.smoothedPressure);
-
-    previousSmoothedPumpFlow = currentState.smoothedPumpFlow;
-    // Some flow smoothing
-    currentState.smoothedPumpFlow = smoothPumpFlow.updateEstimate(currentState.pumpFlow);
-    currentState.pumpFlowChangeSpeed =
-        (currentState.smoothedPumpFlow - previousSmoothedPumpFlow) / elapsedTimeSec;
-    return pumpClicks;
 }
 
 void SensorReader::readTankWaterLevel(SensorState &currentState, const NextionPage lcdCurrentPageId)
@@ -161,13 +164,8 @@ void SensorReader::readTankWaterLevel(SensorState &currentState, const NextionPa
     {
         // static uint32_t tof_timeout = millis();
         // if (millis() >= tof_timeout) {
-        currentState.waterLvl = tof.readLvl();
+        currentState.waterLvl = tofSensor.readLvl();
         // tof_timeout = millis() + 500;
         // }
     }
-}
-
-void SensorReader::initWaterLevelSensor(SensorState &currentState)
-{
-    tof.init(currentState);
 }

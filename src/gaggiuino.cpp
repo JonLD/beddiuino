@@ -13,9 +13,9 @@
 #include "log.h"
 #include "measurements.h"
 #include "peripherals/esp_comms.h"
+#include "peripherals/gpio.h"
 #include "peripherals/internal_watchdog.h"
 #include "peripherals/led.h"
-#include "peripherals/gpio.h"
 #include "peripherals/pressure_sensor.h"
 #include "peripherals/pump.h"
 #include "peripherals/scales.h"
@@ -65,24 +65,18 @@ static void brewParamsReset(void);
 static bool sysReadinessCheck(void);
 static inline void sysHealthCheck(float pressureThreshold);
 static unsigned long getTimeSinceInit(void);
+static PhaseProfiler &getPhaseProfiler(void);
+static PredictiveWeight &getPredictiveWeight(void);
+static SensorReader &getSensorReader(void);
+static Measurements &getWeightMeasurements(void);
 
 /* Private variables */
 namespace
 {
-SimpleKalmanFilter smoothConsideredFlow(0.1f, 0.1f, 0.1f);
 // default phases. Updated in updateProfilerPhases.
 Profile profile;
-PhaseProfiler phaseProfiler{profile};
-
 unsigned long brewingTimer;
 unsigned long flowTimer;
-
-// scales vars
-Measurements weightMeasurements(4);
-
-PredictiveWeight predictiveWeight;
-
-SensorReader sensorReader;
 SensorState currentState;
 
 OPERATION_MODES selectedOperationalMode;
@@ -93,6 +87,31 @@ bool startupInitFinished;
 
 LED led;
 } // namespace
+
+/* Class getters to initialise on first use */
+static PhaseProfiler &getPhaseProfiler()
+{
+    static PhaseProfiler phaseProfiler{profile};
+    return phaseProfiler;
+}
+
+static PredictiveWeight &getPredictiveWeight(void)
+{
+    static PredictiveWeight predictiveWeight;
+    return predictiveWeight;
+}
+
+static SensorReader &getSensorReader(void)
+{
+    static SensorReader sensorReader;
+    return sensorReader;
+}
+
+static Measurements &getWeightMeasurements()
+{
+    static Measurements weightMeasurements(4);
+    return weightMeasurements;
+}
 
 void setup(void)
 {
@@ -132,7 +151,7 @@ void setup(void)
     led.begin();
     led.setColor(9u, 0u, 9u); // WHITE
     // Init the tof sensor
-    sensorReader.initWaterLevelSensor(currentState);
+    getSensorReader().initWaterLevelSensor(currentState);
 
     // Initialising the saved values or writing defaults if first start
     eepromInit();
@@ -168,9 +187,7 @@ void setup(void)
     iwdcInit();
 }
 
-// ##############################################################################################################################
-// ############################################________________MAIN______________################################################
-// ##############################################################################################################################
+// #######################################________________MAIN______________###########################################
 
 // Main loop where all the logic is continuously run
 void loop(void)
@@ -187,13 +204,12 @@ void loop(void)
     sysHealthCheck(SYS_PRESSURE_IDLE);
 }
 
-// ##############################################################################################################################
-// #############################################___________SENSORS_READ________##################################################
-// ##############################################################################################################################
+// ########################################___________SENSORS_READ________#############################################
 
 static void sensorsRead(void)
 {
-    sensorReader.sensorReadStep(currentState, runningCfg, brewActive, lcdCurrentPageId);
+    getSensorReader().sensorReadStep(currentState, runningCfg, brewActive, lcdCurrentPageId,
+                                     getWeightMeasurements());
     updateStartupTimer();
     calculateWeightAndFlow();
     espCommsReadData();
@@ -202,6 +218,7 @@ static void sensorsRead(void)
 
 static void calculateWeightAndFlow(void)
 {
+    static SimpleKalmanFilter smoothConsideredFlow(0.1f, 0.1f, 0.1f);
     uint32_t elapsedTime = millis() - flowTimer;
 
     if (brewActive)
@@ -214,15 +231,15 @@ static void calculateWeightAndFlow(void)
         if (elapsedTime > REFRESH_FLOW_EVERY)
         {
             flowTimer = millis();
-            float elapsedTimeSec = elapsedTime / 1000.f;
-            long pumpClicks = sensorReader.readFlow(currentState, elapsedTimeSec);
+            const float elapsedTimeSec = elapsedTime / 1000.f;
+            long pumpClicks = getSensorReader().readFlow(currentState, elapsedTimeSec);
             float consideredFlow = currentState.smoothedPumpFlow * elapsedTimeSec;
             // Update predictive class with our current phase
-            CurrentPhase &phase = phaseProfiler.getCurrentPhase();
-            predictiveWeight.update(currentState, phase, runningCfg);
+            CurrentPhase &phase = getPhaseProfiler().getCurrentPhase();
+            getPredictiveWeight().update(currentState, phase, runningCfg);
 
             // Start the predictive weight calculations when conditions are true
-            if (predictiveWeight.isOutputFlow() || currentState.weight > 0.4f)
+            if (getPredictiveWeight().isOutputFlow() || currentState.weight > 0.4f)
             {
                 float flowPerClick = getPumpFlowPerClick(currentState.smoothedPressure);
                 float actualFlow = (consideredFlow > pumpClicks * flowPerClick)
@@ -259,9 +276,7 @@ static void calculateWeightAndFlow(void)
     }
 }
 
-// ##############################################################################################################################
-// ############################################______PAGE_CHANGE_VALUES_REFRESH_____#############################################
-// ##############################################################################################################################
+// #######################################______PAGE_CHANGE_VALUES_REFRESH_____########################################
 static void pageValuesRefresh()
 {
     // Read the page we're landing in: leaving keyboard page means a value
@@ -285,9 +300,7 @@ static void pageValuesRefresh()
     lcdLastCurrentPageId = lcdCurrentPageId;
 }
 
-// #############################################################################################
 // ############################____OPERATIONAL_MODE_CONTROL____#################################
-// #############################################################################################
 static void modeSelect(void)
 {
     if (!startupInitFinished)
@@ -352,9 +365,7 @@ static void modeSelect(void)
     }
 }
 
-// #############################################################################################
 // ################################____LCD_REFRESH_CONTROL___###################################
-// #############################################################################################
 
 static void lcdRefresh(void)
 {
@@ -430,9 +441,9 @@ static void lcdRefresh(void)
         pageRefreshTimer = millis() + REFRESH_SCREEN_EVERY;
     }
 }
-// #############################################################################################
+
 // ###################################____SAVE_BUTTON____#######################################
-// #############################################################################################
+
 static void tryEepromWrite(const eepromValues_t &eepromValues)
 {
     bool success = eepromWrite(eepromValues);
@@ -509,7 +520,7 @@ void lcdBrewGraphScalesTareTrigger(void)
     else
     {
         currentState.shotWeight = 0.f;
-        predictiveWeight.setIsForceStarted(true);
+        getPredictiveWeight().setIsForceStarted(true);
     }
 }
 
@@ -546,9 +557,8 @@ void lcdQuickProfileSwitch(void)
     lcdShowPopup("Profile switched!");
 }
 
-// #############################################################################################
 // ###############################____PROFILING_CONTROL____#####################################
-// #############################################################################################
+
 static void updateProfilerPhases(void)
 {
     float shotTarget = -1.f;
@@ -837,12 +847,12 @@ static void profiling(void)
     { // runs this only when brew button activated and pressure
       // profile selected
         uint32_t timeInShot = millis() - brewingTimer;
-        phaseProfiler.updatePhase(timeInShot, currentState);
-        CurrentPhase &currentPhase = phaseProfiler.getCurrentPhase();
+        getPhaseProfiler().updatePhase(timeInShot, currentState);
+        CurrentPhase &currentPhase = getPhaseProfiler().getCurrentPhase();
         ShotSnapshot shotSnapshot = buildShotSnapshot(timeInShot, currentState, currentPhase);
         espCommsSendShotData(shotSnapshot, 100);
 
-        if (phaseProfiler.isFinished())
+        if (getPhaseProfiler().isFinished())
         {
             setPumpOff();
             gpio::closeValve();
@@ -888,10 +898,7 @@ static void manualFlowControl(void)
     justDoCoffee(runningCfg, currentState, brewActive);
 }
 
-// #############################################################################################
-// ###################################____BREW
-// DETECT____#######################################
-// #############################################################################################
+// ###################################____BREW_DETECT____#######################################
 
 static void brewDetect(void)
 {
@@ -938,9 +945,9 @@ static void brewParamsReset(void)
     flowTimer = brewingTimer;
     systemHealthTimer = brewingTimer + HEALTHCHECK_EVERY;
 
-    weightMeasurements.clear();
-    predictiveWeight.reset();
-    phaseProfiler.reset();
+    getWeightMeasurements().clear();
+    getPredictiveWeight().reset();
+    getPhaseProfiler().reset();
 }
 
 static bool sysReadinessCheck(void)
@@ -983,7 +990,7 @@ static inline void sysHealthCheck(float pressureThreshold)
         setPumpOff();
         gpio::setBoilerOff();
         gpio::setSteamBoilerRelayOff();
-        sensorReader.themocoupleHealthCheck(currentState, runningCfg);
+        getSensorReader().themocoupleHealthCheck(currentState, runningCfg);
     }
 
     /*Shut down heaters if steam has been ON and unused fpr more than 10
@@ -1111,7 +1118,7 @@ static bool isBoilerFull(unsigned long elapsedTime)
     bool boilerFull = false;
     if (elapsedTime > BOILER_FILL_START_TIME + 1000UL)
     {
-        const float changInSmoothedPressure = sensorReader.getChangeInPressure(currentState);
+        const float changInSmoothedPressure = getSensorReader().getChangeInPressure(currentState);
         boilerFull = (changInSmoothedPressure > -0.02f) && (changInSmoothedPressure < 0.001f);
     }
 

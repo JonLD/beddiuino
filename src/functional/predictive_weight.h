@@ -29,7 +29,8 @@ public:
     puckResistance(0.f),
     truePuckResistance(0.f),
     resistanceDelta(0.f),
-    pressureDrop(0.f)
+    pressureDrop(0.f),
+    preinfusionFinished(false)
   {}
 
   bool isOutputFlow() {
