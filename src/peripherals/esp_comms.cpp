@@ -42,8 +42,8 @@ void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
       .scalesPresent = state.scalesPresent,
       .temperature = state.waterTemperature,
       .pressure = state.pressure_bar,
-      .pumpFlow = state.smoothedPumpFlow,
-      .weightFlow = state.smoothedWeightFlow,
+      .pumpFlow = state.pumpFlow,
+      .weightFlow = state.weightFlow,
       .weight = state.weight,
       .waterLvl = state.waterLvl
     };

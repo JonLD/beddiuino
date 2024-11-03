@@ -12,8 +12,8 @@ ShotSnapshot buildShotSnapshot(uint32_t timeInShot, const SensorState& state, Cu
   return ShotSnapshot{
     .timeInShot = timeInShot,
     .pressure = state.pressure_bar,
-    .pumpFlow = state.smoothedPumpFlow,
-    .weightFlow = state.smoothedWeightFlow,
+    .pumpFlow = state.pumpFlow,
+    .weightFlow = state.weightFlow,
     .temperature = state.waterTemperature,
     .shotWeight = state.shotWeight,
     .waterPumped = state.waterPumped,
@@ -63,7 +63,7 @@ inline bool predictTargerAchieved(const float targetValue, const float currentVa
 bool PhaseStopConditions::isReached(SensorState& state, long timeInShot, ShotSnapshot stateAtPhaseStart) const {
   auto stopOn = this;
   uint32_t timeInPhase = timeInShot - stateAtPhaseStart.timeInShot;
-  float flow = state.weight > 0.4f ? state.smoothedWeightFlow : state.smoothedPumpFlow;
+  float flow = state.weight > 0.4f ? state.weightFlow : state.pumpFlow;
   float currentWaterPumpedInPhase = state.waterPumped - stateAtPhaseStart.waterPumped;
 
   return (stopOn->time >= 0L && timeInPhase >= static_cast<uint32_t>(stopOn->time)) ||
@@ -71,8 +71,8 @@ bool PhaseStopConditions::isReached(SensorState& state, long timeInShot, ShotSna
     (stopOn->pressureAbove > 0.f && state.pressure_bar > stopOn->pressureAbove) ||
     (stopOn->pressureBelow > 0.f && state.pressure_bar < stopOn->pressureBelow) ||
     (stopOn->waterPumpedInPhase > 0.f && currentWaterPumpedInPhase >= stopOn->waterPumpedInPhase) ||
-    (stopOn->flowAbove > 0.f && state.smoothedPumpFlow > stopOn->flowAbove) ||
-    (stopOn->flowBelow > 0.f && state.smoothedPumpFlow < stopOn->flowBelow);
+    (stopOn->flowAbove > 0.f && state.pumpFlow > stopOn->flowAbove) ||
+    (stopOn->flowBelow > 0.f && state.pumpFlow < stopOn->flowBelow);
 }
 
 bool GlobalStopConditions::isReached(const SensorState& state, uint32_t timeInShot) {
@@ -81,7 +81,7 @@ bool GlobalStopConditions::isReached(const SensorState& state, uint32_t timeInSh
   }
 
   auto stopOn = this;
-  float flow = state.weight > 0.4f ? state.smoothedWeightFlow : state.smoothedPumpFlow;
+  float flow = state.weight > 0.4f ? state.weightFlow : state.pumpFlow;
 
   return (stopOn->weight > 0.f && predictTargerAchieved(stopOn->weight, state.shotWeight, flow, 0.5f)) ||
     (stopOn->waterPumped > 0.f && state.waterPumped > stopOn->waterPumped) ||

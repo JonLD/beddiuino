@@ -61,17 +61,17 @@ void SensorReader::themocoupleHealthCheck(SensorState &currentState,
 long SensorReader::readFlow(SensorState &currentState, const float elapsedTimeSec)
 {
     static SimpleKalmanFilter smoothPumpFlow(0.1f, 0.1f, 0.01f);
-    static float previousSmoothedPumpFlow;
+    static float previousPumpFlow;
     long pumpClicks = getAndResetClickCounter();
     currentState.pumpClicks = (float)pumpClicks / elapsedTimeSec;
 
-    currentState.pumpFlow = getPumpFlow(currentState.pumpClicks, currentState.pressure_bar);
+    currentState.rawPumpFlow = getPumpFlow(currentState.pumpClicks, currentState.pressure_bar);
 
-    previousSmoothedPumpFlow = currentState.smoothedPumpFlow;
+    previousPumpFlow = currentState.pumpFlow;
     // Some flow smoothing
-    currentState.smoothedPumpFlow = smoothPumpFlow.updateEstimate(currentState.pumpFlow);
+    currentState.pumpFlow = smoothPumpFlow.updateEstimate(currentState.rawPumpFlow);
     currentState.pumpFlowChangeSpeed =
-        (currentState.smoothedPumpFlow - previousSmoothedPumpFlow) / elapsedTimeSec;
+        (currentState.pumpFlow - previousPumpFlow) / elapsedTimeSec;
     return pumpClicks;
 }
 
@@ -129,10 +129,10 @@ void SensorReader::readWeight(SensorState &currentState, const bool brewActive,
             if (brewActive)
             {
                 currentState.shotWeight = currentState.tarePending ? 0.f : currentState.weight;
-                currentState.weightFlow =
+                const float rawWeightFlow =
                     fmax(0.f, weightMeasurements.measurementChange().changeSpeed());
-                currentState.smoothedWeightFlow =
-                    smoothScalesFlow.updateEstimate(currentState.weightFlow);
+                currentState.weightFlow =
+                    smoothScalesFlow.updateEstimate(rawWeightFlow);
             }
         }
         scalesTimer = millis();

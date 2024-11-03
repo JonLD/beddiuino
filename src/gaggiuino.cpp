@@ -233,7 +233,7 @@ static void calculateWeightAndFlow(void)
             flowTimer = millis();
             const float elapsedTimeSec = elapsedTime / 1000.f;
             long pumpClicks = getSensorReader().readFlow(currentState, elapsedTimeSec);
-            float consideredFlow = currentState.smoothedPumpFlow * elapsedTimeSec;
+            float consideredFlow = currentState.pumpFlow * elapsedTimeSec;
             // Update predictive class with our current phase
             CurrentPhase &phase = getPhaseProfiler().getCurrentPhase();
             getPredictiveWeight().update(currentState, phase, runningCfg);
@@ -414,7 +414,7 @@ static void lcdRefresh(void)
             if (currentState.shotWeight)
                 lcdSetWeight(currentState.shotWeight > -0.8f ? currentState.shotWeight : -0.9f);
             /*LCD flow output*/
-            lcdSetFlow(currentState.smoothedPumpFlow * 10.f);
+            lcdSetFlow(currentState.pumpFlow * 10.f);
             break;
         default:
             break; // don't push needless data on other pages
@@ -938,7 +938,7 @@ static void brewParamsReset(void)
 {
     currentState.tarePending = true;
     currentState.shotWeight = 0.f;
-    currentState.pumpFlow = 0.f;
+    currentState.rawPumpFlow = 0.f;
     currentState.weight = 0.f;
     currentState.waterPumped = 0.f;
     brewingTimer = millis();

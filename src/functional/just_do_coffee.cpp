@@ -6,8 +6,8 @@ extern unsigned long steamTime;
 // inline static float TEMP_DELTA(float d) { return (d*DELTA_RANGE); }
 inline static float TEMP_DELTA(float d, const SensorState &currentState)
 {
-    return (d * (currentState.pumpFlow < 1.f ? currentState.pumpFlow / 7.f
-                                             : currentState.pumpFlow / 5.f));
+    return (d * (currentState.rawPumpFlow < 1.f ? currentState.rawPumpFlow / 7.f
+                                             : currentState.rawPumpFlow / 5.f));
 }
 
 void justDoCoffee(const eepromValues_t &runningCfg, const SensorState &currentState,

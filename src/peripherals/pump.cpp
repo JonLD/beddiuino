@@ -39,7 +39,7 @@ inline float getPumpPct(const float targetPressure, const float flowRestriction,
 
   float diff = targetPressure - currentState.pressure_bar;
   float maxPumpPct = flowRestriction <= 0.f ? 1.f : getClicksPerSecondForFlow(flowRestriction, currentState.pressure_bar) / (float) maxPumpClicksPerSecond;
-  float pumpPctToMaintainFlow = getClicksPerSecondForFlow(currentState.smoothedPumpFlow, currentState.pressure_bar) / (float) maxPumpClicksPerSecond;
+  float pumpPctToMaintainFlow = getClicksPerSecondForFlow(currentState.pumpFlow, currentState.pressure_bar) / (float) maxPumpClicksPerSecond;
 
   if (diff > 2.f) {
     return fminf(maxPumpPct, 0.25f + 0.2f * diff);

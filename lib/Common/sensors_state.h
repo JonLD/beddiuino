@@ -17,15 +17,14 @@ struct SensorState
     due to boiler having a hard limit of 4ml/s heat capacity */
     float waterTemperature;    // °C
     float pressureChangeSpeed; // bar/s
-    float pumpFlow;            // ml/s
+    float rawPumpFlow;            // ml/s
     float pumpFlowChangeSpeed; // ml/s^2
     float waterPumped;
-    float weightFlow;
     float weight;
     float shotWeight;
     float pressure_bar;
-    float smoothedPumpFlow;
-    float smoothedWeightFlow;
+    float pumpFlow;
+    float weightFlow;
     float consideredFlow;
     long pumpClicks;
     uint16_t waterLvl;

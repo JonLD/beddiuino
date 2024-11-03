@@ -50,12 +50,12 @@ public:
       return;
     }
     float previousPuckResistance = puckResistance;
-    puckResistance = state.pressure_bar * 1000.f / state.smoothedPumpFlow; // Resistance in mBar * s / g
+    puckResistance = state.pressure_bar * 1000.f / state.pumpFlow; // Resistance in mBar * s / g
     resistanceDelta = puckResistance - previousPuckResistance;
     pressureDrop = state.pressure_bar * 10.f;
     pressureDrop -= pressureDrop - state.pumpClicks;
     pressureDrop = pressureDrop > 0.f ? pressureDrop : 1.f;
-    truePuckResistance = calculatePuckResistance(state.smoothedPumpFlow, crossSectionalArea, dynamicViscosity, pressureDrop);
+    truePuckResistance = calculatePuckResistance(state.pumpFlow, crossSectionalArea, dynamicViscosity, pressureDrop);
 
     /* ::OBSERVATIONS::
     Through empirical testing it's been observed that ~2 bars is the indicator of the pf headspace being full
