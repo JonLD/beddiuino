@@ -2,6 +2,8 @@
 #ifndef SENSORS_STATE_H
 #define SENSORS_STATE_H
 
+#include <stdint.h>
+
 struct SensorState
 {
     bool brewSwitchState;
@@ -21,13 +23,12 @@ struct SensorState
     float weightFlow;
     float weight;
     float shotWeight;
-    float smoothedPressure;
+    float pressure_bar;
     float smoothedPumpFlow;
     float smoothedWeightFlow;
     float consideredFlow;
     long pumpClicks;
     uint16_t waterLvl;
-    bool tofReady;
 };
 
 struct SensorStateSnapshot

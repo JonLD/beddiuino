@@ -40,7 +40,7 @@ void SensorReader::sensorReadStep(SensorState &currentState, const eepromValues_
 
 float SensorReader::getChangeInPressure(const SensorState &currentState)
 {
-    return previousSmoothedPressure - currentState.smoothedPressure;
+    return previousPressure_bar - currentState.pressure_bar;
 }
 
 void SensorReader::themocoupleHealthCheck(SensorState &currentState,
@@ -65,7 +65,7 @@ long SensorReader::readFlow(SensorState &currentState, const float elapsedTimeSe
     long pumpClicks = getAndResetClickCounter();
     currentState.pumpClicks = (float)pumpClicks / elapsedTimeSec;
 
-    currentState.pumpFlow = getPumpFlow(currentState.pumpClicks, currentState.smoothedPressure);
+    currentState.pumpFlow = getPumpFlow(currentState.pumpClicks, currentState.pressure_bar);
 
     previousSmoothedPumpFlow = currentState.smoothedPumpFlow;
     // Some flow smoothing
@@ -77,7 +77,7 @@ long SensorReader::readFlow(SensorState &currentState, const float elapsedTimeSe
 
 void SensorReader::initWaterLevelSensor(SensorState &currentState)
 {
-    tofSensor.init(currentState);
+    tofSensor.init();
 }
 
 /* Private method definitions */
@@ -149,11 +149,11 @@ void SensorReader::readPressure(SensorState &currentState)
     if (elapsedTime > GET_PRESSURE_READ_EVERY)
     {
         float elapsedTimeSec = elapsedTime / 1000.f;
-        previousSmoothedPressure = currentState.smoothedPressure;
-        const float pressure_bar = getPressure();
-        currentState.smoothedPressure = smoothPressure.updateEstimate(pressure_bar);
+        previousPressure_bar = currentState.pressure_bar;
+        const float rawPressure_bar = getPressure();
+        currentState.pressure_bar = smoothPressure.updateEstimate(rawPressure_bar);
         currentState.pressureChangeSpeed =
-            (currentState.smoothedPressure - previousSmoothedPressure) / elapsedTimeSec;
+            (currentState.pressure_bar - previousPressure_bar) / elapsedTimeSec;
         pressureTimer = millis();
     }
 }

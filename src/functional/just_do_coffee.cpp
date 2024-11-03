@@ -112,7 +112,7 @@ void steamCtrl(const eepromValues_t &runningCfg, SensorState &currentState)
     float steamTempSetPoint = runningCfg.steamSetPoint + runningCfg.offsetTemp;
     float sensorTemperature = currentState.temperature + runningCfg.offsetTemp;
 
-    if (currentState.smoothedPressure > steamThreshold_ || sensorTemperature > steamTempSetPoint)
+    if (currentState.pressure_bar > steamThreshold_ || sensorTemperature > steamTempSetPoint)
     {
         gpio::setBoilerOff();
         gpio::setSteamBoilerRelayOff();
@@ -133,7 +133,7 @@ void steamCtrl(const eepromValues_t &runningCfg, SensorState &currentState)
         gpio::setSteamBoilerRelayOn();
 #ifndef DREAM_STEAM_DISABLED // disabled for bigger boilers which have no  need of adding water
                              // during steaming
-        if (currentState.smoothedPressure < activeSteamPressure_)
+        if (currentState.pressure_bar < activeSteamPressure_)
         {
             setPumpToRawValue(3);
         }
@@ -145,7 +145,7 @@ void steamCtrl(const eepromValues_t &runningCfg, SensorState &currentState)
     }
 
     /*In case steam is forgotten ON for more than 15 min*/
-    if (currentState.smoothedPressure > passiveSteamPressure_)
+    if (currentState.pressure_bar > passiveSteamPressure_)
     {
         currentState.isSteamForgottenON = millis() - steamTime >= STEAM_TIMEOUT;
     }

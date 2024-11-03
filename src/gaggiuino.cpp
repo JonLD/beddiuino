@@ -241,7 +241,7 @@ static void calculateWeightAndFlow(void)
             // Start the predictive weight calculations when conditions are true
             if (getPredictiveWeight().isOutputFlow() || currentState.weight > 0.4f)
             {
-                float flowPerClick = getPumpFlowPerClick(currentState.smoothedPressure);
+                float flowPerClick = getPumpFlowPerClick(currentState.pressure_bar);
                 float actualFlow = (consideredFlow > pumpClicks * flowPerClick)
                                        ? consideredFlow
                                        : pumpClicks * flowPerClick;
@@ -252,9 +252,9 @@ static void calculateWeightAndFlow(void)
                      ACTIVE_PROFILE(runningCfg).tpType) &&
                     currentState.pressureChangeSpeed > 0.15f)
                 {
-                    if ((currentState.smoothedPressure <
+                    if ((currentState.pressure_bar <
                          ACTIVE_PROFILE(runningCfg).mfProfileStart * 0.9f) ||
-                        (currentState.smoothedPressure <
+                        (currentState.pressure_bar <
                          ACTIVE_PROFILE(runningCfg).tfProfileStart * 0.9f))
                     {
                         actualFlow *= 0.3f;
@@ -374,7 +374,7 @@ static void lcdRefresh(void)
 
     if (millis() > pageRefreshTimer)
     {
-        lcdSetPressure(currentState.smoothedPressure * 10.f);
+        lcdSetPressure(currentState.pressure_bar * 10.f);
 
         /*LCD temp output*/
         float brewTempSetPoint = ACTIVE_PROFILE(runningCfg).setpoint + runningCfg.offsetTemp;
@@ -1020,8 +1020,7 @@ static inline void sysHealthCheck(float pressureThreshold)
     // Should enter the block every "systemHealthTimer" seconds
     if (millis() >= systemHealthTimer)
     {
-        while (currentState.smoothedPressure >= pressureThreshold &&
-               currentState.temperature < 100.f)
+        while (currentState.pressure_bar >= pressureThreshold && currentState.temperature < 100.f)
         {
             // Reloading the watchdog timer, if this function fails to run MCU is
             // rebooted
@@ -1057,7 +1056,7 @@ static inline void sysHealthCheck(float pressureThreshold)
     if (lcdCurrentPageId == NextionPage::BrewManual)
         return;
 
-    if (currentState.smoothedPressure >= pressureThreshold && currentState.temperature < 100.f)
+    if (currentState.pressure_bar >= pressureThreshold && currentState.temperature < 100.f)
     {
         if (millis() >= systemHealthTimer - 3500ul && millis() <= systemHealthTimer - 500ul)
         {

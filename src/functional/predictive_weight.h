@@ -50,9 +50,9 @@ public:
       return;
     }
     float previousPuckResistance = puckResistance;
-    puckResistance = state.smoothedPressure * 1000.f / state.smoothedPumpFlow; // Resistance in mBar * s / g
+    puckResistance = state.pressure_bar * 1000.f / state.smoothedPumpFlow; // Resistance in mBar * s / g
     resistanceDelta = puckResistance - previousPuckResistance;
-    pressureDrop = state.smoothedPressure * 10.f;
+    pressureDrop = state.pressure_bar * 10.f;
     pressureDrop -= pressureDrop - state.pumpClicks;
     pressureDrop = pressureDrop > 0.f ? pressureDrop : 1.f;
     truePuckResistance = calculatePuckResistance(state.smoothedPumpFlow, crossSectionalArea, dynamicViscosity, pressureDrop);
@@ -81,10 +81,10 @@ public:
     if (!preinfusionFinished  && soakEnabled) {
       if (predictiveTargetReached) {
         // pressure drop needs to be around 1.5bar since target hit for output flow to be considered started.
-        if (pressureTarget - state.smoothedPressure > 1.f) outputFlowStarted = true;
+        if (pressureTarget - state.pressure_bar > 1.f) outputFlowStarted = true;
         else return;
       }
-      if (!predictiveTargetReached && state.smoothedPressure < pressureTarget) {
+      if (!predictiveTargetReached && state.pressure_bar < pressureTarget) {
         return;
       } else {
         predictiveTargetReached = true;
@@ -92,7 +92,7 @@ public:
       }
     }
     // Pressure has to cross the 2 bar threshold.
-    if (state.smoothedPressure < 2.1f) return;
+    if (state.pressure_bar < 2.1f) return;
 
     if (phaseTypePressure) {
       // If the pressure or flow are raising too fast dismiss the spike from the output.

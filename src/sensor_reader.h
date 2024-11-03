@@ -15,7 +15,7 @@ class SensorReader
     SensorReader()
     {
         thermoTimer = 0u;
-        previousSmoothedPressure = 0.f;
+        previousPressure_bar = 0.f;
     }
     void sensorReadStep(SensorState &currentState, const eepromValues_t &runningCfg,
                         const bool brewActive, const NextionPage lcdCurrentPageId,
@@ -27,7 +27,7 @@ class SensorReader
 
   private:
     unsigned long thermoTimer;
-    float previousSmoothedPressure;
+    float previousPressure_bar;
     TOF tofSensor;
     static void readSwitches(SensorState &currentState);
     void readTemperature(SensorState &currentState, const eepromValues_t &runningCfg);

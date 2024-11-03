@@ -11,7 +11,7 @@ ShotSnapshot buildShotSnapshot(uint32_t timeInShot, const SensorState& state, Cu
 
   return ShotSnapshot{
     .timeInShot = timeInShot,
-    .pressure = state.smoothedPressure,
+    .pressure = state.pressure_bar,
     .pumpFlow = state.smoothedPumpFlow,
     .weightFlow = state.smoothedWeightFlow,
     .temperature = state.waterTemperature,
@@ -68,8 +68,8 @@ bool PhaseStopConditions::isReached(SensorState& state, long timeInShot, ShotSna
 
   return (stopOn->time >= 0L && timeInPhase >= static_cast<uint32_t>(stopOn->time)) ||
     (stopOn->weight > 0.f && state.shotWeight > stopOn->weight) ||
-    (stopOn->pressureAbove > 0.f && state.smoothedPressure > stopOn->pressureAbove) ||
-    (stopOn->pressureBelow > 0.f && state.smoothedPressure < stopOn->pressureBelow) ||
+    (stopOn->pressureAbove > 0.f && state.pressure_bar > stopOn->pressureAbove) ||
+    (stopOn->pressureBelow > 0.f && state.pressure_bar < stopOn->pressureBelow) ||
     (stopOn->waterPumpedInPhase > 0.f && currentWaterPumpedInPhase >= stopOn->waterPumpedInPhase) ||
     (stopOn->flowAbove > 0.f && state.smoothedPumpFlow > stopOn->flowAbove) ||
     (stopOn->flowBelow > 0.f && state.smoothedPumpFlow < stopOn->flowBelow);

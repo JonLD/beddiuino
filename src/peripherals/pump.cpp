@@ -37,9 +37,9 @@ inline float getPumpPct(const float targetPressure, const float flowRestriction,
       return 0.f;
   }
 
-  float diff = targetPressure - currentState.smoothedPressure;
-  float maxPumpPct = flowRestriction <= 0.f ? 1.f : getClicksPerSecondForFlow(flowRestriction, currentState.smoothedPressure) / (float) maxPumpClicksPerSecond;
-  float pumpPctToMaintainFlow = getClicksPerSecondForFlow(currentState.smoothedPumpFlow, currentState.smoothedPressure) / (float) maxPumpClicksPerSecond;
+  float diff = targetPressure - currentState.pressure_bar;
+  float maxPumpPct = flowRestriction <= 0.f ? 1.f : getClicksPerSecondForFlow(flowRestriction, currentState.pressure_bar) / (float) maxPumpClicksPerSecond;
+  float pumpPctToMaintainFlow = getClicksPerSecondForFlow(currentState.smoothedPumpFlow, currentState.pressure_bar) / (float) maxPumpClicksPerSecond;
 
   if (diff > 2.f) {
     return fminf(maxPumpPct, 0.25f + 0.2f * diff);
@@ -131,11 +131,11 @@ float getClicksPerSecondForFlow(const float flow, const float pressure) {
 void setPumpFlow(const float targetFlow, const float pressureRestriction, const SensorState &currentState) {
   // If a pressure restriction exists then the we go into pressure profile with a flowRestriction
   // which is equivalent but will achieve smoother pressure management
-  if (pressureRestriction > 0.f && currentState.smoothedPressure > pressureRestriction * 0.5f) {
+  if (pressureRestriction > 0.f && currentState.pressure_bar > pressureRestriction * 0.5f) {
     setPumpPressure(pressureRestriction, targetFlow, currentState);
   }
   else {
-    float pumpPct = getClicksPerSecondForFlow(targetFlow, currentState.smoothedPressure) / (float)maxPumpClicksPerSecond;
+    float pumpPct = getClicksPerSecondForFlow(targetFlow, currentState.pressure_bar) / (float)maxPumpClicksPerSecond;
     setPumpToRawValue(pumpPct * PUMP_RANGE);
   }
 }

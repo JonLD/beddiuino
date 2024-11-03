@@ -11,6 +11,7 @@ static inline void iwdcInit(void) {
   // IWDC init
   if(IWatchdog.isReset()) {
     lcdShowPopup("WATCHDOG RESTARTED");
+    LOG_ERROR("WATCHDOG RESTARTED");
     IWatchdog.clearReset();
   }
   IWatchdog.begin(5000000);
