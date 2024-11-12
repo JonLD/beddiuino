@@ -12,7 +12,6 @@ static ADS1015 ADS(0x48);
 static ADS1115 ADS(0x48);
 #endif
 
-float previousPressure;
 float currentPressure;
 
 void adsInit(void) {
@@ -32,7 +31,6 @@ float getPressure(void) {  //returns sensor pressure data
 
   getAdsError();
 
-  previousPressure = currentPressure;
 #if defined SINGLE_BOARD
   currentPressure = (ADS.getValue() - 166) / 111.11f; // 12bit
 #else
